@@ -1,16 +1,17 @@
 ﻿using RestSharp;
+using Sync.Models;
 using System.Threading.Tasks;
 
-namespace Sync
+namespace Sync.Services
 {
     /// <summary>
     /// API Docs found at https://docs.virtuoussoftware.com/
     /// </summary>
-    internal class VirtuousService
+    public class VirtuousService
     {
         private readonly RestClient _restClient;
 
-        public VirtuousService(IConfiguration configuration) 
+        public VirtuousService(IConfiguration configuration)
         {
             var apiBaseUrl = configuration.GetValue("VirtuousApiBaseUrl");
             var apiKey = configuration.GetValue("VirtuousApiKey");
@@ -32,7 +33,7 @@ namespace Sync
             var body = new ContactQueryRequest();
             request.AddJsonBody(body);
 
-            var response = await _restClient.GetAsync<PagedResult<AbbreviatedContact>>(request);
+            var response = await _restClient.PostAsync<PagedResult<AbbreviatedContact>>(request);
             return response;
         }
     }

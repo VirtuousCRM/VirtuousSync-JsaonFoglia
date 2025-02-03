@@ -1,9 +1,10 @@
 ﻿using Dapper;
+using Sync.Models;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 
-namespace Sync
+namespace Sync.Services
 {
     public class DapperService
     {
