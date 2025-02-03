@@ -1,41 +1,91 @@
-﻿using CsvHelper;
+﻿using Sync.Services;
 using System;
-using System.Globalization;
-using System.IO;
+using System.Configuration;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Sync
 {
-    internal class Program
+    public class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            Sync().GetAwaiter().GetResult();
+            try
+            {
+                var config = LoadConfiguration();
+                var apiKey = config.AppSettings.Settings["apiKey"].Value;
+                string connectionString = config.ConnectionStrings.ConnectionStrings["DefaultConnection"].ConnectionString;
+
+                await Sync(apiKey, connectionString);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
-        private static async Task Sync()
+        private static async Task Sync(string apiKey, string connectionString)
         {
-            var apiKey = "REPLACE_WITH_API_KEY_PROVIDED";
-            var configuration = new Configuration(apiKey);
+            var configuration = new Models.Configuration(apiKey);
             var virtuousService = new VirtuousService(configuration);
+            var dapperService = new DapperService(connectionString);
 
             var skip = 0;
             var take = 100;
             var maxContacts = 1000;
             var hasMore = true;
 
-            using (var writer = new StreamWriter($"Contacts_{DateTime.Now:MM_dd_yyyy}.csv"))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            do
             {
-                do
+                try
                 {
                     var contacts = await virtuousService.GetContactsAsync(skip, take);
                     skip += take;
-                    csv.WriteRecords(contacts.List);
+                    await dapperService.InsertContacts(contacts.List);
                     hasMore = skip > maxContacts;
                 }
-                while (!hasMore);
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
+            while (!hasMore);
+        }
+
+        private static Configuration LoadConfiguration()
+        {
+            var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            var debugConfigPath = AppDomain.CurrentDomain.BaseDirectory + "App.Debug.config";
+
+            if (System.IO.File.Exists(debugConfigPath))
+            {
+                var xmlDoc = new XmlDocument();
+                xmlDoc.Load(debugConfigPath);
+
+                foreach (XmlElement element in xmlDoc.DocumentElement)
+                {
+                    if (element.Name == "appSettings")
+                    {
+                        foreach (XmlElement addElement in element)
+                        {
+                            var key = addElement.GetAttribute("key");
+                            var value = addElement.GetAttribute("value");
+                            config.AppSettings.Settings[key].Value = value;
+                        }
+                    }
+                    else if (element.Name == "connectionStrings")
+                    {
+                        foreach (XmlElement addElement in element)
+                        {
+                            var name = addElement.GetAttribute("name");
+                            var connectionString = addElement.GetAttribute("connectionString");
+                            config.ConnectionStrings.ConnectionStrings[name].ConnectionString = connectionString;
+                        }
+                    }
+                }
+            }
+
+            return config;
         }
     }
 }
