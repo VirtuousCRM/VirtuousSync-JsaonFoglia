@@ -1,4 +1,5 @@
 ﻿using CsvHelper;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Globalization;
 using System.IO;
@@ -8,14 +9,23 @@ namespace Sync
 {
     internal class Program
     {
+
         static void Main(string[] args)
         {
-            Sync().GetAwaiter().GetResult();
+            var config = new ConfigurationBuilder()
+                .SetBasePath(System.IO.Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            var apiKey = config.GetSection("apiKey").Value;
+
+            Sync(apiKey).GetAwaiter().GetResult();
         }
 
-        private static async Task Sync()
+        private static async Task Sync(string apiKey)
         {
-            var apiKey = "REPLACE_WITH_API_KEY_PROVIDED";
+            if (apiKey == null) return;
+
             var configuration = new Configuration(apiKey);
             var virtuousService = new VirtuousService(configuration);
 
