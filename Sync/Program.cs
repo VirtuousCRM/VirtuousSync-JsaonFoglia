@@ -1,8 +1,4 @@
-﻿using CsvHelper;
-using System;
-using System.Globalization;
-using System.IO;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace Sync
 {
@@ -10,32 +6,36 @@ namespace Sync
     {
         static void Main(string[] args)
         {
-            Sync().GetAwaiter().GetResult();
+            var config = new ConfigurationBuilder()
+                .SetBasePath(System.IO.Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            var apiKey = config.GetSection("apiKey").Value;
+            string connectionString = config.GetConnectionString("DefaultConnection");
+
+            Sync(apiKey, connectionString).GetAwaiter().GetResult();
         }
 
-        private static async Task Sync()
+        private static async Task Sync(string apiKey, string connectionString)
         {
-            var apiKey = "REPLACE_WITH_API_KEY_PROVIDED";
             var configuration = new Configuration(apiKey);
             var virtuousService = new VirtuousService(configuration);
+            var dapperService = new DapperService(connectionString);
 
             var skip = 0;
             var take = 100;
             var maxContacts = 1000;
             var hasMore = true;
 
-            using (var writer = new StreamWriter($"Contacts_{DateTime.Now:MM_dd_yyyy}.csv"))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            do
             {
-                do
-                {
-                    var contacts = await virtuousService.GetContactsAsync(skip, take);
-                    skip += take;
-                    csv.WriteRecords(contacts.List);
-                    hasMore = skip > maxContacts;
-                }
-                while (!hasMore);
+                var contacts = await virtuousService.GetContactsAsync(skip, take);
+                skip += take;
+                await dapperService.InsertContacts(contacts.List);
+                hasMore = skip > maxContacts;
             }
+            while (!hasMore);
         }
     }
 }
