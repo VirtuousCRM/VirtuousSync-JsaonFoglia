@@ -1,4 +1,5 @@
 ﻿using RestSharp;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Sync
@@ -10,7 +11,7 @@ namespace Sync
     {
         private readonly RestClient _restClient;
 
-        public VirtuousService(IConfiguration configuration) 
+        public VirtuousService(IConfiguration configuration)
         {
             var apiBaseUrl = configuration.GetValue("VirtuousApiBaseUrl");
             var apiKey = configuration.GetValue("VirtuousApiKey");
@@ -29,7 +30,24 @@ namespace Sync
             request.AddQueryParameter("Skip", skip);
             request.AddQueryParameter("Take", take);
 
-            var body = new ContactQueryRequest();
+            var body = new ContactQueryRequest()
+            {
+                Groups = new List<object>()
+                {
+                    new
+                    {
+                        Conditions = new []
+                        {
+                            new {
+                                Parameter = "State",
+                                @Operator = "Is",
+                                Value = "AZ"
+                            }
+                        },
+                    }
+                }
+            };
+
             request.AddJsonBody(body);
 
             var response = await _restClient.GetAsync<PagedResult<AbbreviatedContact>>(request);
